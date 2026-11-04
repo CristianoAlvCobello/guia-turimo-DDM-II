@@ -1,9 +1,13 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
-import 'package:guia_turismo/controller/camera_controller.dart';
-import 'package:guia_turismo/controller/categorias_controller.dart';
-import 'package:guia_turismo/controller/lugares_controller.dart';
-import 'package:guia_turismo/models/lugares_model.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+
+import '../controller/categorias_controller.dart';
+import '../controller/lugares_controller.dart';
+import '../models/lugares_model.dart';
+import '../services/localizacao_service.dart';
 
 class CadastroLugar extends StatefulWidget {
   const CadastroLugar({super.key});
@@ -13,220 +17,260 @@ class CadastroLugar extends StatefulWidget {
 }
 
 class _CadastroLugarState extends State<CadastroLugar> {
-  final _formKey = GlobalKey<FormState>();
-  final _nomeController = TextEditingController();
-  final _descricaoController = TextEditingController();
-  final _latitudeController = TextEditingController();
-  final _longitudeController = TextEditingController();
+  final _formulario = GlobalKey<FormState>();
+  final _nome = TextEditingController();
+  final _descricao = TextEditingController();
+  final _endereco = TextEditingController();
+  final _latitude = TextEditingController();
+  final _longitude = TextEditingController();
+
   int? _categoriaId;
+  bool _buscando = false;
+  String? _enderecoEncontrado;
+  Uint8List? _foto;
+  String? _nomeFoto;
 
   @override
   void dispose() {
-    _nomeController.dispose();
-    _descricaoController.dispose();
-    _latitudeController.dispose();
-    _longitudeController.dispose();
+    _nome.dispose();
+    _descricao.dispose();
+    _endereco.dispose();
+    _latitude.dispose();
+    _longitude.dispose();
     super.dispose();
   }
 
-  Future<void> _salvar(
-    LugaresController lugaresController,
-    CameraController cameraController,
-  ) async {
-    if (!_formKey.currentState!.validate()) return;
-    final lugar = LugaresModel(
-      id: 0,
-      nome: _nomeController.text.trim(),
-      descricao: _descricaoController.text.trim(),
-      latitude: double.parse(_latitudeController.text.replaceAll(',', '.')),
-      longitude: double.parse(_longitudeController.text.replaceAll(',', '.')),
-      categoriaId: _categoriaId!,
+  Future<void> _buscarEndereco() async {
+    String busca;
+    try {
+      busca = LocalizacaoService.prepararBusca(_endereco.text);
+    } catch (erro) {
+      _aviso(erro.toString().replaceFirst('Exception: ', ''));
+      return;
+    }
+
+    _endereco.value = TextEditingValue(
+      text: busca,
+      selection: TextSelection.collapsed(offset: busca.length),
     );
-    final ok = await lugaresController.cadastrarLugar(
-      lugar,
-      foto: cameraController.imagemSelecionada,
-    );
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(lugaresController.mensagem)),
-    );
-    if (ok) {
-      cameraController.limpar();
-      lugaresController.listaLugares();
-      Navigator.pop(context);
+
+    setState(() => _buscando = true);
+    try {
+      final local = await LocalizacaoService().buscar(busca);
+      if (!mounted) return;
+      if (local == null) {
+        _aviso('Endereço não encontrado');
+        return;
+      }
+      setState(() {
+        _latitude.text = local.latitude.toStringAsFixed(6);
+        _longitude.text = local.longitude.toStringAsFixed(6);
+        _enderecoEncontrado = local.endereco;
+      });
+    } catch (erro) {
+      if (!mounted) return;
+      _aviso('Erro na busca: ${erro.toString().replaceFirst('Exception: ', '')}');
+    } finally {
+      if (mounted) setState(() => _buscando = false);
     }
   }
 
-  String? _validarNumero(String? valor, String campo) {
-    if (valor == null || valor.trim().isEmpty) return "Informe $campo";
-    if (double.tryParse(valor.replaceAll(',', '.')) == null) {
-      return "Número inválido";
+  Future<void> _selecionarFoto(ImageSource origem) async {
+    try {
+      final imagem = await ImagePicker().pickImage(
+        source: origem,
+        imageQuality: 75,
+        maxWidth: 1200,
+      );
+      if (imagem == null) return;
+      final bytes = await imagem.readAsBytes();
+      if (!mounted) return;
+      setState(() {
+        _foto = bytes;
+        _nomeFoto = imagem.name;
+      });
+    } catch (_) {
+      if (mounted) _aviso('Não foi possível selecionar a foto.');
     }
+  }
+
+  String? _validarCoordenada(String? texto, bool latitude) {
+    final numero = double.tryParse((texto ?? '').replaceAll(',', '.'));
+    if (numero == null) return 'Informe um número';
+    if (latitude && (numero < -90 || numero > 90)) return 'Entre -90 e 90';
+    if (!latitude && (numero < -180 || numero > 180)) return 'Entre -180 e 180';
     return null;
+  }
+
+  Future<void> _salvar() async {
+    if (!_formulario.currentState!.validate()) return;
+    if (_categoriaId == null) {
+      _aviso('Escolha uma categoria');
+      return;
+    }
+    final controle = context.read<LugaresController>();
+
+    final lugar = LugaresModel(
+      id: 0,
+      nome: _nome.text.trim(),
+      descricao: _descricao.text.trim(),
+      categoriaId: _categoriaId!,
+      latitude: double.parse(_latitude.text.replaceAll(',', '.')),
+      longitude: double.parse(_longitude.text.replaceAll(',', '.')),
+    );
+
+    final salvou = await controle.cadastrarLugar(
+      lugar,
+      foto: _foto,
+      nomeFoto: _nomeFoto,
+    );
+    if (!mounted) return;
+    _aviso(controle.mensagem);
+    if (salvou) {
+      await controle.listaLugares();
+      if (mounted) Navigator.pop(context);
+    }
+  }
+
+  void _aviso(String texto) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texto)));
   }
 
   @override
   Widget build(BuildContext context) {
+    final categorias = context.watch<CategoriasController>();
+    final lugares = context.watch<LugaresController>();
+
     return Scaffold(
-      appBar: AppBar(title: Text("Cadastrar lugar")),
+      appBar: AppBar(title: const Text('Cadastrar lugar')),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Form(
-          key: _formKey,
+          key: _formulario,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Consumer<CameraController>(
-                builder: (context, controleCamera, _) => Column(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: SizedBox(
-                        height: 200,
-                        width: double.infinity,
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            exibirImagem(controleCamera, context),
-                            Positioned(
-                              bottom: 8,
-                              right: 8,
-                              child: FloatingActionButton.small(
-                                heroTag: 'fotoLugar',
-                                onPressed: controleCamera.carregando
-                                    ? null
-                                    : () => abrirModal(controleCamera, context),
-                                child: const Icon(Icons.camera_alt_rounded),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (controleCamera.erro != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Text(controleCamera.erro!,
-                            style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                      ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 16),
+              const Text('Dados do lugar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
               TextFormField(
-                controller: _nomeController,
-                decoration: InputDecoration(
-                  labelText: "Nome do lugar",
-                  border: OutlineInputBorder(),
-                ),
-                validator: (valor) => (valor == null || valor.trim().isEmpty)
-                    ? "Informe o nome"
-                    : null,
+                controller: _nome,
+                decoration: const InputDecoration(labelText: 'Nome do lugar'),
+                validator: (texto) => (texto ?? '').trim().isEmpty ? 'Informe o nome' : null,
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 12),
               TextFormField(
-                controller: _descricaoController,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: "Descrição",
-                  border: OutlineInputBorder(),
-                ),
-                validator: (valor) => (valor == null || valor.trim().isEmpty)
-                    ? "Informe a descrição"
-                    : null,
+                controller: _descricao,
+                decoration: const InputDecoration(labelText: 'Descrição'),
+                maxLines: 2,
+                validator: (texto) => (texto ?? '').trim().isEmpty ? 'Informe a descrição' : null,
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 12),
+              if (categorias.carregando)
+                const Center(child: CircularProgressIndicator())
+              else if (categorias.erro.isNotEmpty || categorias.categorias.isEmpty)
+                TextButton.icon(
+                  onPressed: categorias.listaCategorias,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Tentar carregar categorias novamente'),
+                )
+              else
+                DropdownButtonFormField<int>(
+                  initialValue: _categoriaId,
+                  decoration: const InputDecoration(labelText: 'Categoria'),
+                  items: categorias.categorias.map((categoria) => DropdownMenuItem(
+                    value: categoria.id,
+                    child: Text(categoria.nome),
+                  )).toList(),
+                  onChanged: (id) => setState(() => _categoriaId = id),
+                  validator: (id) => id == null ? 'Escolha uma categoria' : null,
+                ),
+              const SizedBox(height: 24),
+              const Text('Localização', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              const Text('Digite um endereço ou CEP'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _endereco,
+                onChanged: (texto) {
+                  final formatado = LocalizacaoService.formatarCepParcial(texto);
+                  if (formatado != texto) {
+                    _endereco.value = TextEditingValue(
+                      text: formatado,
+                      selection: TextSelection.collapsed(offset: formatado.length),
+                    );
+                  }
+                  _latitude.clear();
+                  _longitude.clear();
+                  setState(() => _enderecoEncontrado = null);
+                },
+                decoration: const InputDecoration(
+                  labelText: 'Endereço ou CEP',
+                ),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _buscando ? null : _buscarEndereco,
+                icon: _buscando
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.search),
+                label: const Text('Buscar coordenadas'),
+              ),
+              if (_enderecoEncontrado != null) ...[
+                const SizedBox(height: 8),
+                Text('Encontrado: $_enderecoEncontrado', style: const TextStyle(color: Colors.green)),
+              ],
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
                     child: TextFormField(
-                      controller: _latitudeController,
-                      keyboardType: TextInputType.numberWithOptions(
-                        decimal: true,
-                        signed: true,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: "Latitude",
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (valor) => _validarNumero(valor, "a latitude"),
+                      controller: _latitude,
+                      decoration: const InputDecoration(labelText: 'Latitude'),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                      validator: (texto) => _validarCoordenada(texto, true),
                     ),
                   ),
-                  SizedBox(width: 12),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: TextFormField(
-                      controller: _longitudeController,
-                      keyboardType: TextInputType.numberWithOptions(
-                        decimal: true,
-                        signed: true,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: "Longitude",
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (valor) =>
-                          _validarNumero(valor, "a longitude"),
+                      controller: _longitude,
+                      decoration: const InputDecoration(labelText: 'Longitude'),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                      validator: (texto) => _validarCoordenada(texto, false),
                     ),
                   ),
                 ],
               ),
-              SizedBox(height: 16),
-              Consumer<CategoriasController>(
-                builder: (context, categoriasController, _) {
-                  if (categoriasController.carregando) {
-                    return Center(child: CircularProgressIndicator());
-                  }
-                  if (categoriasController.erro != '' ||
-                      categoriasController.categorias.isEmpty) {
-                    return Row(
-                      children: [
-                        Expanded(
-                          child: Text(categoriasController.erro != ''
-                              ? categoriasController.erro
-                              : "Nenhuma categoria encontrada"),
-                        ),
-                        IconButton(
-                          onPressed: () => categoriasController.listaCategorias(),
-                          icon: Icon(Icons.refresh),
-                        ),
-                      ],
-                    );
-                  }
-                  return DropdownButtonFormField<int>(
-                    initialValue: _categoriaId,
-                    decoration: InputDecoration(
-                      labelText: "Categoria",
-                      border: OutlineInputBorder(),
-                    ),
-                    items: categoriasController.categorias
-                        .map((categoria) => DropdownMenuItem<int>(
-                              value: categoria.id,
-                              child: Text(categoria.nome),
-                            ))
-                        .toList(),
-                    onChanged: (valor) => setState(() => _categoriaId = valor),
-                    validator: (valor) =>
-                        valor == null ? "Escolha uma categoria" : null,
-                  );
-                },
-              ),
-              SizedBox(height: 24),
-              // Consumer2 acompanha o envio e a seleção da foto neste botão.
-              Consumer2<LugaresController, CameraController>(
-                builder: (context, lugaresController, cameraController, _) => SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: lugaresController.carregando || cameraController.carregando
-                        ? null
-                        : () => _salvar(lugaresController, cameraController),
-                    child: lugaresController.carregando || cameraController.carregando
-                        ? SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text("Salvar lugar"),
+              const SizedBox(height: 24),
+              const Text('Foto (opcional)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              if (_foto != null) ...[
+                Image.memory(_foto!, height: 150, width: double.infinity, fit: BoxFit.cover),
+                const SizedBox(height: 8),
+              ],
+              Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => _selecionarFoto(ImageSource.gallery),
+                    icon: const Icon(Icons.photo),
+                    label: const Text('Galeria'),
                   ),
+                  OutlinedButton.icon(
+                    onPressed: () => _selecionarFoto(ImageSource.camera),
+                    icon: const Icon(Icons.camera_alt),
+                    label: const Text('Câmera'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                  child: ElevatedButton(
+                  onPressed: lugares.carregando || _buscando ? null : _salvar,
+                  child: lugares.carregando
+                      ? const CircularProgressIndicator()
+                      : const Text('Salvar lugar'),
                 ),
               ),
             ],
@@ -235,61 +279,4 @@ class _CadastroLugarState extends State<CadastroLugar> {
       ),
     );
   }
-}
-
-Widget exibirImagem(CameraController controleCamera, BuildContext context) {
-  if (controleCamera.carregando) {
-    return const Center(child: CircularProgressIndicator());
-  }
-  final imagem = controleCamera.imagemSelecionada;
-  if (imagem != null) {
-    return Image.file(
-      imagem,
-      key: ValueKey(imagem.path),
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) =>
-          const Center(child: Text('Não foi possível exibir esta foto.')),
-    );
-  }
-  return ColoredBox(
-    color: Theme.of(context).colorScheme.primaryContainer,
-    child: const Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.add_photo_alternate_outlined, size: 46),
-        SizedBox(height: 8),
-        Text('Toque na câmera para adicionar uma foto'),
-      ],
-    ),
-  );
-}
-
-void abrirModal(CameraController controleCamera, context) {
-  showModalBottomSheet(
-    context: context,
-    builder: (context) => SafeArea(
-      bottom: true,
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        children: [
-          ListTile(
-            leading: Icon(Icons.camera),
-            title: Text("Câmera"),
-            onTap: () {
-              controleCamera.abrirCamera();
-              Navigator.pop(context);
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.photo_album),
-            title: Text("Galeria"),
-            onTap: () {
-              controleCamera.abrirGaleria();
-              Navigator.pop(context);
-            },
-          ),
-        ],
-      ),
-    ),
-  );
 }

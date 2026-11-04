@@ -10,7 +10,6 @@ class CategoriasService {
       final response = await http.get(Uri.parse(endpoint));
       if (response.statusCode == 200) {
         final dynamic corpo = jsonDecode(response.body);
-        // a API pode devolver a lista direto ou dentro de "data"
         final List<dynamic> data = corpo is List ? corpo : corpo['data'];
         return data.map((item) => CategoriaModel.fromJson(item)).toList();
       } else {

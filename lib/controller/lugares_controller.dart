@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:guia_turismo/models/lugares_model.dart';
 import 'package:guia_turismo/services/lugares_services.dart';
@@ -31,8 +31,11 @@ class LugaresController extends ChangeNotifier {
     }
   }
 
-  // Retorna true se cadastrou o lugar; a mensagem fica em "mensagem"
-  Future<bool> cadastrarLugar(LugaresModel dados, {File? foto}) async {
+  Future<bool> cadastrarLugar(
+    LugaresModel dados, {
+    Uint8List? foto,
+    String? nomeFoto,
+  }) async {
     final token = await SessionService().pegarToken() ?? '';
     carregando = true;
     mensagem = "";
@@ -41,7 +44,7 @@ class LugaresController extends ChangeNotifier {
     try {
       final lugaresService = LugaresServices();
       final resultado = await lugaresService.cadastrarLugar(dados, token);
-      mensagem = resultado['message'];
+      mensagem = resultado['message'].toString();
 
       if (foto != null) {
         try {
@@ -50,7 +53,7 @@ class LugaresController extends ChangeNotifier {
           if (id == null) {
             throw Exception('não foi possível identificar o lugar criado');
           }
-          await lugaresService.enviarFoto(id, foto, token);
+          await lugaresService.enviarFoto(id, foto, nomeFoto ?? 'foto.jpg', token);
           mensagem = 'Lugar e foto cadastrados com sucesso!';
         } catch (e) {
           mensagem =

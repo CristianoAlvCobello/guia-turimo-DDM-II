@@ -1,11 +1,11 @@
 {
-    "name": "guia_turismo",
-    "short_name": "guia_turismo",
+    "name": "Turistero",
+    "short_name": "Turistero",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Guia de turismo com mapa e cadastro de lugares",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

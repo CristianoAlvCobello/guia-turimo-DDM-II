@@ -1,22 +1,5 @@
-// import 'package:secure_shared_preferences/secure_shared_preferences.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/*class SessionService {
-  Future<void> salvarToken(String token) async {
-    final prefs = await SecureSharedPref.getInstance();
-    await prefs.putString('token', token, isEncrypted: true);
-  }
-
-  Future<String?> pegarToken() async {
-    final prefs = await SecureSharedPref.getInstance();
-    return prefs.getString('token', isEncrypted: true);
-  }
-
-  Future<void> logout() async {
-    final prefs = await SecureSharedPref.getInstance();
-    await prefs.clearAll();
-  }
-}*/
 class SessionService {
   static String nome = '';
   static String email = '';

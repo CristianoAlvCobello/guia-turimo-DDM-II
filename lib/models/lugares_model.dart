@@ -7,7 +7,6 @@ class LugaresModel {
   final String? descricao;
   final int categoriaId;
 
-
   LugaresModel({
     required this.id,
     required this.nome,
@@ -15,19 +14,20 @@ class LugaresModel {
     required this.latitude,
     required this.longitude,
     this.descricao = '',
-    required this.categoriaId
+    required this.categoriaId,
   });
 
-  //Converter dados json (da api) para Map
   factory LugaresModel.fromJson(Map json) {
     return LugaresModel(
-      id: json['id'],
-      nome: json['nome'],
-      latitude: double.parse(json['latitude'].toString()),
-      longitude: double.parse(json['longitude'].toString()),
-      descricao: json['descricao'],
-      categoria: json['categoria'] is Map ? json['categoria']['nome'] : null,
-      categoriaId: json['categoriaId']
+      id: int.tryParse('${json['id']}') ?? 0,
+      nome: '${json['nome'] ?? ''}',
+      latitude: double.tryParse('${json['latitude']}') ?? 0,
+      longitude: double.tryParse('${json['longitude']}') ?? 0,
+      descricao: json['descricao']?.toString(),
+      categoria: json['categoria'] is Map
+          ? json['categoria']['nome']?.toString()
+          : json['categoria']?.toString(),
+      categoriaId: int.tryParse('${json['categoriaId'] ?? (json['categoria'] is Map ? json['categoria']['id'] : null)}') ?? 0,
     );
   }
 
@@ -37,7 +37,7 @@ class LugaresModel {
       'latitude': latitude,
       'longitude': longitude,
       'descricao': descricao,
-      'categoriaId': categoriaId
+      'categoriaId': categoriaId,
     };
   }
 }

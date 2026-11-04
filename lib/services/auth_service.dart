@@ -15,7 +15,6 @@ class AuthService {
       );
       final dados = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        // a API pode devolver {data: {...}} ou os dados direto
         if (dados is Map && dados['data'] is Map) return dados['data'];
         return dados;
       } else {
@@ -27,7 +26,6 @@ class AuthService {
     }
   }
 
-  // Cadastro de usuário: devolve a mensagem da API ou lança Exception
   Future<String> cadastrar(String nome, String email, String senha) async {
     try {
       final response = await http.post(

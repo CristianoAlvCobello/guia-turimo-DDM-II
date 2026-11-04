@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:guia_turismo/models/lugares_model.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
@@ -6,27 +6,27 @@ import 'dart:convert';
 
 class LugaresServices {
   String endpoint = "https://guia.liliaborges.com.br/lugares";
-  int pagina = 1;
-  int limite = 10;
+  final int limite = 100;
 
   Future<List<LugaresModel>> buscarLugares() async {
-    try {
-      final response = await http.get(
+    final lugares = <LugaresModel>[];
+
+    for (int pagina = 1; pagina <= 10; pagina++) {
+      final resposta = await http.get(
         Uri.parse('$endpoint?pagina=$pagina&limite=$limite'),
-      );
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = jsonDecode(response.body);
-        final List<dynamic> data = responseData['data'];
-        return data.map((item) => LugaresModel.fromJson(item)).toList();
-      } else {
-        throw Exception('Erro na requisição: ${response.body}');
+      ).timeout(const Duration(seconds: 15));
+      if (resposta.statusCode != 200) {
+        throw Exception('Não foi possível buscar os lugares.');
       }
-    } catch (e) {
-      rethrow;
+
+      final corpo = jsonDecode(resposta.body);
+      final List dados = corpo is List ? corpo : corpo['data'];
+      lugares.addAll(dados.map((item) => LugaresModel.fromJson(item)));
+      if (dados.length < limite) break;
     }
+    return lugares;
   }
 
-  // Devolve {'message': String, 'id': int?} (id pode vir nulo se a API não devolver)
   Future<Map<String, dynamic>> cadastrarLugar(
     LugaresModel dados,
     String token,
@@ -67,7 +67,6 @@ class LugaresServices {
     }
   }
 
-  // Plano B: se a API não devolver o id, procura o lugar recém-criado pelo nome
   Future<int?> buscarIdPorNome(String nome) async {
     try {
       final response = await http.get(Uri.parse('$endpoint?pagina=1&limite=100'));
@@ -86,15 +85,20 @@ class LugaresServices {
     }
   }
 
-  // POST /lugares/{id}/galeria (multipart/form-data, campo "foto")
-  Future<void> enviarFoto(int id, File foto, String token) async {
+  Future<void> enviarFoto(
+    int id,
+    Uint8List foto,
+    String nomeFoto,
+    String token,
+  ) async {
     final request = http.MultipartRequest('POST', Uri.parse('$endpoint/$id/galeria'));
     request.headers['Authorization'] = 'Bearer $token';
     request.files.add(
-      await http.MultipartFile.fromPath(
+      http.MultipartFile.fromBytes(
         'foto',
-        foto.path,
-        contentType: _tipoImagem(foto.path),
+        foto,
+        filename: nomeFoto,
+        contentType: _tipoImagem(nomeFoto),
       ),
     );
     final enviada = await request.send();

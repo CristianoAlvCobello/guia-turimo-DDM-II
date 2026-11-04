@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:guia_turismo/controller/auth_controller.dart';
 import 'package:provider/provider.dart';
+import '../controller/auth_controller.dart';
 
 class RegistroScreen extends StatefulWidget {
   const RegistroScreen({super.key});
@@ -10,139 +10,88 @@ class RegistroScreen extends StatefulWidget {
 }
 
 class _RegistroScreenState extends State<RegistroScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _nomeController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _senhaController = TextEditingController();
-  final _confirmaController = TextEditingController();
-  bool _ocultarSenha = true;
+  final _formulario = GlobalKey<FormState>();
+  final _nome = TextEditingController();
+  final _email = TextEditingController();
+  final _senha = TextEditingController();
+  final _confirmacao = TextEditingController();
 
   @override
   void dispose() {
-    _nomeController.dispose();
-    _emailController.dispose();
-    _senhaController.dispose();
-    _confirmaController.dispose();
+    _nome.dispose();
+    _email.dispose();
+    _senha.dispose();
+    _confirmacao.dispose();
     super.dispose();
   }
 
-  Future<void> _cadastrar(AuthController auth) async {
-    if (!_formKey.currentState!.validate()) return;
-    final ok = await auth.cadastrarUsuario(
-      _nomeController.text.trim(),
-      _emailController.text.trim(),
-      _senhaController.text,
+  Future<void> _cadastrar() async {
+    if (!_formulario.currentState!.validate()) return;
+    final auth = context.read<AuthController>();
+    final sucesso = await auth.cadastrarUsuario(
+      _nome.text.trim(),
+      _email.text.trim(),
+      _senha.text,
     );
     if (!mounted) return;
-    if (ok) {
+
+    if (sucesso) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Cadastro realizado! Faça login.")),
+        const SnackBar(content: Text('Conta criada! Agora faça login.')),
       );
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.erro)),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(auth.erro)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthController>();
+
     return Scaffold(
-      appBar: AppBar(title: Text("Criar conta")),
-      body: Consumer<AuthController>(
-        builder: (context, auth, child) => Center(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(24),
+      appBar: AppBar(title: const Text('Criar conta')),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
             child: Form(
-              key: _formKey,
+              key: _formulario,
               child: Column(
                 children: [
-                  Icon(Icons.person_add_alt_1_outlined, size: 48,
-                      color: Theme.of(context).colorScheme.primary),
+                  TextFormField(
+                    controller: _nome,
+                    decoration: const InputDecoration(labelText: 'Nome'),
+                    validator: (texto) => (texto ?? '').trim().isEmpty ? 'Informe o nome' : null,
+                  ),
                   const SizedBox(height: 12),
-                  Text("Vamos começar?",
-                      style: Theme.of(context).textTheme.headlineSmall),
-                  const SizedBox(height: 8),
-                  const Text("Preencha seus dados para criar uma conta."),
-                  const SizedBox(height: 24),
                   TextFormField(
-                    controller: _nomeController,
-                    decoration: InputDecoration(
-                      labelText: "Nome",
-                      prefixIcon: Icon(Icons.person_outline),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (valor) => (valor == null || valor.trim().isEmpty)
-                        ? "Informe o nome"
-                        : null,
-                  ),
-                  SizedBox(height: 16),
-                  TextFormField(
-                    controller: _emailController,
+                    controller: _email,
+                    decoration: const InputDecoration(labelText: 'E-mail'),
                     keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      labelText: "E-mail",
-                      prefixIcon: Icon(Icons.mail_outline),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (valor) {
-                      if (valor == null || valor.trim().isEmpty) {
-                        return "Informe o e-mail";
-                      }
-                      if (!valor.contains('@')) return "E-mail inválido";
-                      return null;
-                    },
+                    validator: (texto) => (texto ?? '').contains('@') ? null : 'E-mail inválido',
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   TextFormField(
-                    controller: _senhaController,
-                    obscureText: _ocultarSenha,
-                    decoration: InputDecoration(
-                      labelText: "Senha",
-                      prefixIcon: Icon(Icons.lock_outline),
-                      border: OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        onPressed: () =>
-                            setState(() => _ocultarSenha = !_ocultarSenha),
-                        icon: Icon(_ocultarSenha
-                            ? Icons.visibility
-                            : Icons.visibility_off),
-                      ),
-                    ),
-                    validator: (valor) {
-                      if (valor == null || valor.length < 6) {
-                        return "A senha deve ter pelo menos 6 caracteres";
-                      }
-                      return null;
-                    },
+                    controller: _senha,
+                    decoration: const InputDecoration(labelText: 'Senha'),
+                    obscureText: true,
+                    validator: (texto) => (texto ?? '').length >= 6 ? null : 'Mínimo de 6 caracteres',
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   TextFormField(
-                    controller: _confirmaController,
-                    obscureText: _ocultarSenha,
-                    decoration: InputDecoration(
-                      labelText: "Confirmar senha",
-                      prefixIcon: Icon(Icons.verified_user_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (valor) => valor != _senhaController.text
-                        ? "As senhas não conferem"
-                        : null,
+                    controller: _confirmacao,
+                    decoration: const InputDecoration(labelText: 'Confirmar senha'),
+                    obscureText: true,
+                    validator: (texto) => texto == _senha.text ? null : 'As senhas são diferentes',
                   ),
-                  SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed:
-                          auth.carregando ? null : () => _cadastrar(auth),
-                      child: auth.carregando
-                          ? SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Text("Cadastrar"),
+                      onPressed: auth.carregando ? null : _cadastrar,
+                      child: Text(auth.carregando ? 'Salvando...' : 'Cadastrar'),
                     ),
                   ),
                 ],
