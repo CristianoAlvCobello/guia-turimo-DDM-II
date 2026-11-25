@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:guia_turismo/models/categoria_model.dart';
 import 'package:guia_turismo/services/categorias_service.dart';
 

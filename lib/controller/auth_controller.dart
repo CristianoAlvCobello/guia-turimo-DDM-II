@@ -32,6 +32,32 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  Future<bool> autenticarComGoogle() async {
+    carregando = true;
+    erro = '';
+    notifyListeners();
+    try {
+      final usuario = await AuthService().entrarComGoogle();
+      if (usuario == null) {
+        erro = 'Login com Google cancelado.';
+        return false;
+      }
+      await SessionService().salvarUsuario({
+        'nome': usuario.displayName ?? '',
+        'email': usuario.email ?? '',
+        'foto': usuario.photoURL ?? '',
+      });
+      await SessionService().salvarLoginGoogle();
+      return true;
+    } catch (e) {
+      erro = 'Erro: ${e.toString()}';
+      return false;
+    } finally {
+      carregando = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> cadastrarUsuario(String nome, String email, String senha) async {
     carregando = true;
     erro = '';
@@ -49,6 +75,7 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> deslogarUsuario() async {
+    await AuthService().sairDoGoogle();
     await SessionService().logout();
   }
 }

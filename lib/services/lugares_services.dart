@@ -27,6 +27,18 @@ class LugaresServices {
     return lugares;
   }
 
+  Future<List<String>> buscarFotos(int id) async {
+    for (final url in ['$endpoint/$id/galeria', '$endpoint/$id']) {
+      try {
+        final resposta = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+        if (resposta.statusCode != 200) continue;
+        final fotos = LugaresModel.extrairFotos(jsonDecode(resposta.body));
+        if (fotos.isNotEmpty) return fotos;
+      } catch (_) {}
+    }
+    return [];
+  }
+
   Future<Map<String, dynamic>> cadastrarLugar(
     LugaresModel dados,
     String token,

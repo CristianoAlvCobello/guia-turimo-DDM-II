@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import '../controller/auth_controller.dart';
 
@@ -25,6 +25,18 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formulario.currentState!.validate()) return;
     final auth = context.read<AuthController>();
     final sucesso = await auth.autenticarUsuario(_email.text.trim(), _senha.text);
+    if (!mounted) return;
+
+    if (sucesso) {
+      Navigator.pushReplacementNamed(context, 'lugares');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(auth.erro)));
+    }
+  }
+
+  Future<void> _entrarComGoogle() async {
+    final auth = context.read<AuthController>();
+    final sucesso = await auth.autenticarComGoogle();
     if (!mounted) return;
 
     if (sucesso) {
@@ -74,6 +86,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: ElevatedButton(
                       onPressed: auth.carregando ? null : _entrar,
                       child: Text(auth.carregando ? 'Entrando...' : 'Entrar'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: auth.carregando ? null : _entrarComGoogle,
+                      icon: const Icon(Icons.account_circle),
+                      label: const Text('Entrar com Google'),
                     ),
                   ),
                   TextButton(

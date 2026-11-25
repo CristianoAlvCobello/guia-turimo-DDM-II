@@ -67,6 +67,8 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>O app usa sua localização para mostrar onde você está no mapa.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>O aplicativo usa a câmera para fotografar lugares turísticos.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

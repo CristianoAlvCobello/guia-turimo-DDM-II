@@ -1,0 +1,76 @@
+{
+  "project_info": {
+    "project_number": "22724545693",
+    "project_id": "turistero-275cb",
+    "storage_bucket": "turistero-275cb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:22724545693:android:8fdaa0e203684e257a1874",
+        "android_client_info": {
+          "package_name": "com.example.guia_turismo"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "22724545693-17941911l8ea0gijl6vrql7hufnhlvju.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCcK_NMsTT_zXlkvESlYgUnMPLjfFavI34"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "22724545693-17941911l8ea0gijl6vrql7hufnhlvju.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:22724545693:android:2f2276e80eb4c2a77a1874",
+        "android_client_info": {
+          "package_name": "com.turistero"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "22724545693-k5o9m808cdtrd877bg9vqsbhctb2tpu9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.turistero",
+            "certificate_hash": "7a319f9506d46329e9e39b54e6046558d048b303"
+          }
+        },
+        {
+          "client_id": "22724545693-17941911l8ea0gijl6vrql7hufnhlvju.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCcK_NMsTT_zXlkvESlYgUnMPLjfFavI34"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "22724545693-17941911l8ea0gijl6vrql7hufnhlvju.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
